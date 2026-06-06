@@ -1,0 +1,15 @@
+{
+  "name": "Example Government Form",
+  "schemaVersion": 1,
+  "fields": {
+    "full_name": "Nitish Kumar",
+    "father_name": "Ramesh Kumar",
+    "mother_name": "Sunita Devi",
+    "gender": "Male",
+    "address": "123 Main Street, Sector 5",
+    "dob": "15/08/1995",
+    "district": "Patna",
+    "email": "demo@example.com",
+    "phone": "9876543210"
+  }
+}

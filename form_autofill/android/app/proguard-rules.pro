@@ -1,0 +1,3 @@
+-keep class com.formautofill.form_autofill.** { *; }
+-keep class com.google.mlkit.** { *; }
+-dontwarn com.google.mlkit.**

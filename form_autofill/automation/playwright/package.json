@@ -1,0 +1,15 @@
+{
+  "name": "form-autofill-playwright",
+  "version": "1.0.0",
+  "description": "Playwright browser automation sidecar for Form AutoFill Pro",
+  "type": "module",
+  "main": "src/server.mjs",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "install-browsers": "npx playwright install chromium"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "playwright": "^1.48.0"
+  }
+}

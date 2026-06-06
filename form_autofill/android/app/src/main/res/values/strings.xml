@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">Form AutoFill Pro detects form fields, reads labels via OCR, scrolls long forms, and fills matching values automatically. Required for automation.</string>
+    <string name="overlay_channel_name">Automation Status</string>
+    <string name="overlay_notification_title">Form AutoFill running</string>
+    <string name="overlay_notification_text">Auto-filling form fields…</string>
+</resources>
