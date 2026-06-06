@@ -14,7 +14,10 @@ export const status = {
   fieldsFilled: 0,
   fieldsTotal: 0,
   scrollCount: 0,
+  // extra debug for per-field diagnostics (consumed by Flutter Debug tab)
+  debugFields: [],
 };
+
 
 function setStatus(state, message = '', extra = {}) {
   Object.assign(status, { state, message, ...extra });
@@ -81,19 +84,31 @@ async function collectInputs(pg) {
 async function fillField(pg, input, value) {
   const selector = input.selector;
   try {
-    if (input.isFileInput) return false;
-    if (input.isDropdown) {
-      await pg.selectOption(selector, { label: value }).catch(async () => {
-        await pg.selectOption(selector, value);
-      });
-      return true;
+    if (input.isFileInput) {
+      return { ok: false, reason: 'isFileInput (handled separately)' };
     }
+
+    if (!selector) {
+      return { ok: false, reason: 'selector missing' };
+    }
+
+    if (input.isDropdown) {
+      // Prefer label-based selection; fallback to raw value.
+      try {
+        await pg.selectOption(selector, { label: value });
+      } catch (e1) {
+        await pg.selectOption(selector, value);
+      }
+      return { ok: true, reason: '' };
+    }
+
     await pg.fill(selector, value);
-    return true;
-  } catch {
-    return false;
+    return { ok: true, reason: '' };
+  } catch (e) {
+    return { ok: false, reason: (e && e.message) ? e.message : 'fill exception' };
   }
 }
+
 
 async function uploadFiles(pg, paths) {
   for (const filePath of paths) {
@@ -133,6 +148,10 @@ export async function startAutomation(config) {
     await uploadFiles(page, config.uploadPaths);
   }
 
+  // reset debug container for this run
+  status.debugFields = [];
+
+
   const scroll = new ScrollManager(page, {
     maxRetries: config.maxScrollRetries || 8,
     delayMs: config.scrollDelayMs || 600,
@@ -140,6 +159,10 @@ export async function startAutomation(config) {
 
   const filled = new Set();
   let retries = 0;
+
+  // detailed per-field debug (returned to Flutter)
+  const debugFields = [];
+
 
   while (running && filled.size < fieldKeys.length && retries < (config.maxScrollRetries || 8) + 3) {
     if (paused) {
@@ -163,7 +186,39 @@ export async function startAutomation(config) {
         key = matchLabel(h || '', config.ocrThreshold || 55);
         if (key) break;
       }
-      if (!key || filled.has(key) || !fields[key]) continue;
+      if (!key) {
+        debugFields.push({
+          key: null,
+          profileKey: null,
+          status: 'SKIPPED',
+          reason: 'no label match',
+          usedHints: { label: input.label, ariaLabel: input.ariaLabel, name: input.name, placeholder: input.placeholder },
+          inputSelector: input.selector,
+        });
+        continue;
+      }
+
+      if (filled.has(key)) {
+        debugFields.push({
+          key,
+          profileKey: key,
+          status: 'SKIPPED',
+          reason: 'already filled',
+          inputSelector: input.selector,
+        });
+        continue;
+      }
+
+      if (!fields[key]) {
+        debugFields.push({
+          key,
+          profileKey: key,
+          status: 'SKIPPED',
+          reason: 'missing profile value',
+          inputSelector: input.selector,
+        });
+        continue;
+      }
 
       setStatus(
         input.isDropdown ? 'waitingDropdown' : 'filling',
@@ -171,12 +226,29 @@ export async function startAutomation(config) {
         { fieldsFilled: filled.size, fieldsTotal: fieldKeys.length, scrollCount: scroll.scrollCount }
       );
 
-      const ok = await fillField(page, input, fields[key]);
-      if (ok) {
+      const fillRes = await fillField(page, input, fields[key]);
+      if (fillRes.ok) {
         filled.add(key);
         progress = true;
         status.fieldsFilled = filled.size;
+        debugFields.push({
+          key,
+          profileKey: key,
+          status: 'SUCCESS',
+          reason: '',
+          inputSelector: input.selector,
+          valueLength: String(fields[key] || '').length,
+        });
+      } else {
+        debugFields.push({
+          key,
+          profileKey: key,
+          status: 'FAILED',
+          reason: fillRes.reason || 'fill failed',
+          inputSelector: input.selector,
+        });
       }
+
     }
 
     if (filled.size >= fieldKeys.length) {
@@ -209,8 +281,10 @@ export async function startAutomation(config) {
     });
   }
 
+  status.debugFields = debugFields;
   running = false;
 }
+
 
 export async function stopAutomation() {
   running = false;

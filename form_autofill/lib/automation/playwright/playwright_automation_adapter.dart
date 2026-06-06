@@ -65,7 +65,9 @@ class PlaywrightAutomationAdapter implements AutomationAdapter {
     }
     await _statusSub?.cancel();
     _statusSub = client.statusStream().listen(_statusController.add);
+
     await client.start(config);
+
   }
 
   @override

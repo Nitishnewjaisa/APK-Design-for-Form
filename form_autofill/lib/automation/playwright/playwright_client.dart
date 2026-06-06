@@ -54,6 +54,7 @@ class PlaywrightClient {
     while (true) {
       try {
         final res = await _http.get(Uri.parse('$baseUrl/automation/status'));
+        // Debug fields returned from Playwright (optional) are handled below.
         if (res.statusCode == 200) {
           yield _mapStatus(jsonDecode(res.body) as Map<String, dynamic>);
         }
@@ -86,6 +87,7 @@ class PlaywrightClient {
         fieldsTotal: map['fieldsTotal'] as int? ?? 0,
         scrollCount: map['scrollCount'] as int? ?? 0,
       );
+
 
   AutomationState _parseState(String? raw) {
     switch (raw) {
